@@ -1,34 +1,43 @@
 import math
 import pygame
 from tank_turret import TankTurret
-from pygame.colordict import THECOLORS
-print(sorted(THECOLORS))
-from random import randint
-colours = [["forestgreen", "darkgreen"], ["steelblue3", "steelblue4"], ["slategray3", "slategray4"], ["tan3", "tan4"], ["aquamarine3", "aquamarine4"], ["darkolivegreen3", "darkolivegreen4"], ["red3", "red4"], ["mistyrose3", "mistyrose4"], ["bisque2", "bisque3"], ["grey20", "grey10"]]
+import constants
+
 TANK_TYPES = {
-    "player" : {"health": 100, "speed":5, "colour1": colours[0][0], "colour2": colours[0][1]},
-    "enemy" : {"health": 50, "speed":5, "colour1": colours[1][0], "colour2": colours[1][1]}
+    "player" : {"health": 100, "speed":5, "cooldown":500, 
+                "body_image_name": "player_3_body_1.png", "turret_image_name": "player_3_turret.png",
+                "turret_pivot": (12, 36)},
+    "enemy" : {"health": 100, "speed":5, "cooldown":1000, 
+               "body_image_name": "enemy_6_body_1.png", "turret_image_name": "enemy_6_turret.png",
+               "turret_pivot": (11, 35)}
 }
-class Tank():
+class Tank(pygame.sprite.Sprite):
     ANGLE_CHANGE = 2
 
-    def __init__(self, x, y, tank_type, screen):
+    def __init__(self, x, y, tank_type, screen, world_to_screen=None):
+        super().__init__()
         self.angle = 0
         properties = TANK_TYPES[tank_type]
         self.type = tank_type
         self.health = properties["health"]
-        self.speed = properties["speed"]
-        self.tank_body = pygame.Surface((50, 80), pygame.SRCALPHA)
-        self.rect = pygame.draw.rect(self.tank_body, properties["colour1"], (0, 0, 50, 80))
-        pygame.draw.rect(self.tank_body, properties["colour2"], (15, 0, 20, 25))
-        self.tank_turret = TankTurret(self, properties["colour2"], screen)
-        self.rect.center = (x, y)
+        self.speed = properties["speed"] / constants.ZOOM
+        #self.tank_body = pygame.Surface((50, 80), pygame.SRCALPHA)
+        #self.rect = pygame.draw.rect(self.tank_body, properties["colour1"], (0, 0, 50, 80))
+        #pygame.draw.rect(self.tank_body, properties["colour2"], (15, 0, 20, 25))
+        self.tank_turret = TankTurret(self, f"{constants.TANK_IMAGE_PATH}{properties['turret_image_name']}",
+                                         properties["cooldown"], screen, world_to_screen,
+                                         properties["turret_pivot"])
+        #self.rect.center = (x, y)
         
         # Float position so small angled steps aren't lost to rect's int rounding
         self.x = float(x)
         self.y = float(y)
 
-        self.rotated_body = self.tank_body
+        self.original_image = pygame.image.load(
+            f"{constants.TANK_IMAGE_PATH}{properties['body_image_name']}"
+        ).convert_alpha()
+        self.image = self.original_image
+        self.rect = self.image.get_rect(center=(round(self.x), round(self.y)))
 
     def drive(self, forward, backward):
         direction = 0
@@ -46,16 +55,19 @@ class Tank():
         self.rect.center = (round(self.x), round(self.y)) #rect position is in ints
 
     def rotate(self, left, right):
+
         if left == True:
             self.angle += self.ANGLE_CHANGE
         if right == True:
             self.angle -= self.ANGLE_CHANGE
-        self.rotated_body = pygame.transform.rotate(self.tank_body, self.angle)
-        self.rect = self.rotated_body.get_rect(center=(round(self.x), round(self.y)))
 
-    def update(self):
-        self.tank_turret.update()
+        self.image = pygame.transform.rotate(self.original_image, self.angle)
+        self.rect = self.image.get_rect(center=(round(self.x), round(self.y)))
 
-    def draw(self, display): 
-        display.blit(self.rotated_body, self.rect)
-        self.tank_turret.draw()
+    def take_damage(self, amount):
+        self.health -= amount
+        print(f"{self.type} damage_taken={amount}, health={self.health}")
+        if self.health <= 0:
+            self.tank_turret.kill()
+            self.kill()
+
