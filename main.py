@@ -26,11 +26,11 @@ moving_forward = False
 moving_backward = False
 
 
-player_tank = Tank(100, 100, "player", screen, map_layer.translate_point)
+player_tank = Tank(100, 100, "player", screen, camera=map_layer)
 background_group.add(player_tank, layer=10) 
 background_group.add(player_tank.tank_turret, layer=11)
 enemy_tanks = pygame.sprite.Group()
-enemy_tank = Tank(300, 600, "enemy", screen, map_layer.translate_point)
+enemy_tank = Tank(300, 600, "enemy", screen, camera=map_layer)
 enemy_tanks.add(enemy_tank)
 all_tanks = pygame.sprite.Group(player_tank, enemy_tank)
 background_group.add(enemy_tank, layer=10)

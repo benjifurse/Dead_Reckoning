@@ -4,14 +4,14 @@ import constants
 
 class Projectile(pygame.sprite.Sprite):
     SPEED = 20 / constants.ZOOM
-    def __init__(self, x, y, angle, owner, screen, world_to_screen=None):
+    def __init__(self, x, y, angle, owner, screen, camera=None):
         super().__init__()
         self.x = float(x)
         self.y = float(y)
         self.angle = angle
         self.owner = owner
         self.screen = screen
-        self.world_to_screen = world_to_screen
+        self.camera = camera
         self.image = pygame.Surface((8, 8), pygame.SRCALPHA)
         self.rect = self.image.get_rect()
         pygame.draw.circle(self.image, "orange", (4, 4), 4)
@@ -47,6 +47,6 @@ class Projectile(pygame.sprite.Sprite):
         self.screen.blit(self.image, self.image.get_rect(center=self._screen_position()))
 
     def _screen_position(self):
-        if self.world_to_screen is None:
+        if self.camera is None:
             return self.rect.center
-        return self.world_to_screen(self.rect.center)
+        return self.camera.translate_point(self.rect.center)

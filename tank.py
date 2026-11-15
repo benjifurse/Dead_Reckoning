@@ -14,7 +14,7 @@ TANK_TYPES = {
 class Tank(pygame.sprite.Sprite):
     ANGLE_CHANGE = 2
 
-    def __init__(self, x, y, tank_type, screen, world_to_screen=None):
+    def __init__(self, x, y, tank_type, screen, camera=None):
         super().__init__()
         self.angle = 0
         properties = TANK_TYPES[tank_type]
@@ -25,10 +25,10 @@ class Tank(pygame.sprite.Sprite):
         #self.rect = pygame.draw.rect(self.tank_body, properties["colour1"], (0, 0, 50, 80))
         #pygame.draw.rect(self.tank_body, properties["colour2"], (15, 0, 20, 25))
         self.tank_turret = TankTurret(self, f"{constants.TANK_IMAGE_PATH}{properties['turret_image_name']}",
-                                         properties["cooldown"], screen, world_to_screen,
+                                         properties["cooldown"], screen, camera,
                                          properties["turret_pivot"])
         #self.rect.center = (x, y)
-        
+
         # Float position so small angled steps aren't lost to rect's int rounding
         self.x = float(x)
         self.y = float(y)
