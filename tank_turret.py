@@ -1,11 +1,12 @@
 import pygame
 import math
 from projectile import Projectile
+import constants
 from random import randint
 
 class TankTurret(pygame.sprite.Sprite):
-    BARREL_LENGTH = 35
-    TURRET_REAR_OFFSET = 5
+    BARREL_LENGTH = constants.TANK_SCALE * 35
+    TURRET_REAR_OFFSET = constants.TANK_SCALE * 35
     def __init__(self, tank, image_path, cooldown, screen, camera=None, image_pivot=None):
         super().__init__()
         self.screen = screen
@@ -13,11 +14,12 @@ class TankTurret(pygame.sprite.Sprite):
         self.tank = tank
         self.angle = 0
         self.cooldown = cooldown
-        self.turret_image = pygame.image.load(image_path).convert_alpha()
-        self.original_image = self.turret_image
+        original_image = pygame.image.load(image_path).convert_alpha()
+        self.original_image = pygame.transform.scale_by(original_image, constants.TANK_SCALE)
         if image_pivot is None:
             image_pivot = self.original_image.get_rect().center
-        self.image_pivot = pygame.Vector2(image_pivot)
+        else:
+           self.image_pivot = pygame.Vector2(image_pivot) * constants.TANK_SCALE
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect()
         self.last_fired = pygame.time.get_ticks() #exact time the last shot was fired

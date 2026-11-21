@@ -1,11 +1,13 @@
 import pygame
-from tank import Tank
-import constants
-import math
-from damage_text import DamageText
-from player_info import PlayerInfo
 import pytmx
 import pyscroll
+import math
+from tank import Tank
+import constants
+from damage_text import DamageText
+from player_info import PlayerInfo
+from obstacle import Obstacle
+from world import World
 
 pygame.init()
 
@@ -14,10 +16,16 @@ pygame.display.set_caption("Dead Reckoning")
 
 #Load the tiled map
 tmx = pytmx.load_pygame("Maps/Test.tmx")
+
 map_data = pyscroll.data.TiledMapData(tmx)
 map_layer = pyscroll.orthographic.BufferedRenderer(map_data, screen.get_size())
 map_layer.zoom = constants.ZOOM
 background_group = pyscroll.PyscrollGroup(map_layer=map_layer, default_layer=10)
+
+world = World("Maps/Test.tmx", screen, camera=map_layer)
+obstacles = world.obstacles
+
+
 
 #tank movement variables
 turning_left = False
@@ -26,16 +34,20 @@ moving_forward = False
 moving_backward = False
 
 
-player_tank = Tank(100, 100, "player", screen, camera=map_layer)
+player_tank = Tank(100, 250, "player", screen, camera=map_layer)
 background_group.add(player_tank, layer=10) 
 background_group.add(player_tank.tank_turret, layer=11)
-enemy_tanks = pygame.sprite.Group()
-enemy_tank = Tank(300, 600, "enemy", screen, camera=map_layer)
-enemy_tanks.add(enemy_tank)
-all_tanks = pygame.sprite.Group(player_tank, enemy_tank)
-background_group.add(enemy_tank, layer=10)
-background_group.add(enemy_tank.tank_turret, layer=11)
-enemy_tank.tank_turret.target = player_tank
+# enemy_tanks = pygame.sprite.Group()
+# enemy_tank = Tank(300, 250, "enemy", screen, camera=map_layer)
+# enemy_tanks.add(enemy_tank)
+enemy_tanks = world.enemies
+all_tanks = pygame.sprite.Group(player_tank)
+all_tanks.add(enemy_tanks)
+for enemy_tank in enemy_tanks:
+    background_group.add(enemy_tank, layer=10)
+    background_group.add(enemy_tank.tank_turret, layer=11)
+    enemy_tank.tank_turret.target = player_tank
+
 
 player_info = PlayerInfo(player_tank.health, screen)
 
@@ -80,11 +92,10 @@ while running == True:
             projectile = player_tank.tank_turret.shoot()
             if projectile is not None:
                 projectiles.add(projectile)
-    
 
     #update tank movement and rotation based on current input states
-    player_tank.rotate(turning_left, turning_right)
-    player_tank.drive(moving_forward, moving_backward)
+    player_tank.rotate(turning_left, turning_right, obstacles)
+    player_tank.drive(moving_forward, moving_backward, obstacles)
     background_group.center(player_tank.rect.center)
     
     for enemy_tank in enemy_tanks:
@@ -95,15 +106,38 @@ while running == True:
         dx = player_tank.x - enemy_tank.x
         dy = player_tank.y - enemy_tank.y
 
-        target_angle = math.degrees(math.atan2(-dx, -dy))
-        if enemy_tank.angle < target_angle:
-            enemy_tank.rotate(True, False)
-        else:
-            enemy_tank.rotate(False, True)
+        direct_angle = math.degrees(math.atan2(-dx, -dy))
         distance = math.hypot(dx, dy)
 
-        if distance > 400: #distance the bot moves towards the player before stopping
-            enemy_tank.drive(True, False)
+        ### TODO: implement a cleverer tank AI that can avoid obstacles and navigate around the map to reach the player tank
+        # if distance > 200:
+        #     if enemy_tank.avoidance_frames > 0:
+        #         target_angle = enemy_tank.avoidance_heading
+        #     else:
+        #         target_angle = direct_angle
+
+        #     angle_difference = (target_angle - enemy_tank.angle + 180) % 360 - 180
+        #     rotated = True
+        #     if angle_difference > enemy_tank.ANGLE_CHANGE:
+        #         rotated = enemy_tank.rotate(True, False, obstacles)
+        #     elif angle_difference < -enemy_tank.ANGLE_CHANGE:
+        #         rotated = enemy_tank.rotate(False, True, obstacles)
+
+        #     if not rotated:
+        #         enemy_tank.drive(False, True, obstacles)
+        #         continue
+
+        #     moved = enemy_tank.drive(True, False, obstacles)
+        #     if moved and enemy_tank.avoidance_frames > 0:
+        #         enemy_tank.avoidance_frames -= 1
+        #         if enemy_tank.avoidance_frames == 0:
+        #             enemy_tank.avoidance_heading = None
+        #     elif not moved:
+        #         enemy_tank.avoidance_turn *= -1
+        #         enemy_tank.avoidance_heading = (
+        #             enemy_tank.angle + 90 * enemy_tank.avoidance_turn
+        #         ) % 360
+        #         enemy_tank.avoidance_frames = 45
 
 
     background_group.update()
@@ -114,9 +148,21 @@ while running == True:
     screen.fill("black")
     background_group.draw(screen)
 
+#HITBOXES FOR TESTING---------------------------------------------------------------
+    for sprites, color in ((all_tanks, "lime"), (obstacles, "red")):
+        for sprite in sprites:
+            top_left = map_layer.translate_point(sprite.rect.topleft)
+            bottom_right = map_layer.translate_point(sprite.rect.bottomright)
+            screen_rect = pygame.Rect(
+                top_left,
+                (bottom_right[0] - top_left[0], bottom_right[1] - top_left[1]),
+            )
+            pygame.draw.rect(screen, color, screen_rect, 1)
+#-----------------------------------------------------------------------------------
+
     #update and draw projectile
     for projectile in list(projectiles):
-        tank_hit, damage_amount = projectile.update(all_tanks)
+        tank_hit, damage_amount = projectile.update(all_tanks, obstacles)
         if tank_hit is not None:
             damage_position = map_layer.translate_point(
                 (tank_hit.rect.centerx, tank_hit.rect.top - 20)
